@@ -1,0 +1,1639 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>R7F701690 · 64-pin 九路 PWM 适配指南 · 200–400 kHz</title>
+<style>
+:root{
+  --bg:#070b10;
+  --bg2:#0a1017;
+  --panel:#0d141d;
+  --panel2:#111b26;
+  --line:#1e2d3d;
+  --line2:#2a3d52;
+  --text:#d8e2ee;
+  --muted:#7e93a8;
+  --dim:#586c80;
+  --amber:#ffb454;
+  --cyan:#5ad4e6;
+  --green:#7ee787;
+  --red:#ff6b6b;
+  --violet:#b392f0;
+  --mono:"JetBrains Mono","Cascadia Code",Consolas,"Courier New",monospace;
+  --sans:"Segoe UI","Microsoft YaHei",system-ui,-apple-system,sans-serif;
+  --shadow:0 18px 50px rgba(0,0,0,.35);
+}
+*{box-sizing:border-box;}
+html{scroll-behavior:smooth;scroll-padding-top:24px;}
+body{
+  margin:0;background:var(--bg);color:var(--text);
+  font-family:var(--sans);line-height:1.75;font-size:15px;
+  overflow-x:hidden;
+}
+body::before{
+  content:"";position:fixed;inset:0;z-index:0;pointer-events:none;
+  background-image:
+    linear-gradient(rgba(90,212,230,.035) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(90,212,230,.035) 1px,transparent 1px);
+  background-size:34px 34px;
+  mask-image:linear-gradient(to bottom,rgba(0,0,0,.9),rgba(0,0,0,.25) 55%,transparent);
+}
+a{color:var(--cyan);text-decoration:none;}
+a:hover{text-decoration:underline;}
+code,kbd,pre{font-family:var(--mono);}
+::selection{background:rgba(255,180,84,.28);color:#fff;}
+::-webkit-scrollbar{width:10px;height:10px;}
+::-webkit-scrollbar-track{background:#070b10;}
+::-webkit-scrollbar-thumb{background:#233346;border-radius:8px;border:2px solid #070b10;}
+::-webkit-scrollbar-thumb:hover{background:#314a63;}
+
+/* ---------- hero ---------- */
+.hero{
+  position:relative;z-index:1;overflow:hidden;
+  border-bottom:1px solid var(--line);
+  background:
+    radial-gradient(900px 420px at 12% -10%,rgba(90,212,230,.16),transparent 60%),
+    radial-gradient(800px 500px at 88% 0%,rgba(255,180,84,.12),transparent 60%),
+    linear-gradient(180deg,#0a1119 0%,#070b10 100%);
+}
+.hero-inner{max-width:1180px;margin:0 auto;padding:64px 28px 44px;position:relative;z-index:2;}
+.badge{
+  display:inline-flex;align-items:center;gap:8px;
+  border:1px solid rgba(90,212,230,.35);background:rgba(90,212,230,.07);
+  color:var(--cyan);border-radius:999px;padding:6px 12px;
+  font-family:var(--mono);font-size:11.5px;letter-spacing:.08em;
+}
+.badge .dot{width:7px;height:7px;border-radius:50%;background:var(--cyan);box-shadow:0 0 12px var(--cyan);}
+h1{
+  margin:20px 0 10px;font-family:var(--mono);font-weight:700;
+  font-size:clamp(34px,5.2vw,64px);line-height:1.1;letter-spacing:-.03em;
+}
+h1 .accent{color:var(--amber);text-shadow:0 0 24px rgba(255,180,84,.25);}
+.subtitle{color:var(--muted);font-size:clamp(14px,1.7vw,18px);max-width:860px;margin:0 0 26px;}
+.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;max-width:880px;}
+.stat{
+  border:1px solid var(--line);background:rgba(13,20,29,.72);
+  border-radius:12px;padding:14px 16px;backdrop-filter:blur(6px);
+}
+.stat .k{font-family:var(--mono);font-size:11px;letter-spacing:.1em;color:var(--dim);text-transform:uppercase;}
+.stat .v{font-family:var(--mono);font-size:24px;color:var(--text);margin-top:4px;}
+.stat .v small{font-size:12px;color:var(--muted);}
+.wave{position:absolute;right:-40px;bottom:-12px;width:min(640px,52vw);opacity:.55;z-index:1;pointer-events:none;}
+.wave path{fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;
+  stroke-dasharray:1600;stroke-dashoffset:1600;animation:draw 2.6s ease forwards;}
+.wave .w1{stroke:var(--amber);}
+.wave .w2{stroke:var(--cyan);animation-delay:.18s;}
+.wave .w3{stroke:var(--green);animation-delay:.36s;opacity:.75;}
+@keyframes draw{to{stroke-dashoffset:0;}}
+
+/* ---------- layout ---------- */
+.layout{max-width:1180px;margin:0 auto;padding:34px 28px 80px;display:grid;grid-template-columns:230px minmax(0,1fr);gap:34px;position:relative;z-index:1;}
+.sidebar{position:sticky;top:24px;align-self:start;font-size:13px;}
+.sidebar .title{font-family:var(--mono);font-size:10.5px;letter-spacing:.14em;color:var(--dim);text-transform:uppercase;margin:0 0 10px 12px;}
+.sidebar nav{display:flex;flex-direction:column;gap:2px;border-left:1px solid var(--line);}
+.sidebar a{
+  display:block;color:var(--muted);padding:7px 12px;border-left:2px solid transparent;
+  margin-left:-1px;line-height:1.35;transition:.18s;
+}
+.sidebar a:hover{color:var(--text);background:rgba(90,212,230,.05);text-decoration:none;}
+.sidebar a.active{color:var(--amber);border-left-color:var(--amber);background:rgba(255,180,84,.06);}
+main{min-width:0;}
+section{margin-bottom:52px;}
+h2{
+  font-family:var(--mono);font-size:22px;letter-spacing:-.01em;margin:0 0 8px;
+  display:flex;align-items:center;gap:12px;
+}
+h2 .num{
+  color:var(--amber);font-size:12px;border:1px solid rgba(255,180,84,.45);
+  border-radius:6px;padding:2px 7px;background:rgba(255,180,84,.06);
+}
+h3{font-family:var(--mono);font-size:16px;margin:24px 0 8px;color:var(--cyan);}
+p{margin:10px 0;color:#c2cfdd;}
+.lead{color:var(--muted);margin-top:0;}
+.card{
+  border:1px solid var(--line);background:linear-gradient(180deg,var(--panel) 0%,rgba(13,20,29,.72) 100%);
+  border-radius:14px;padding:20px 22px;box-shadow:var(--shadow);
+}
+.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;}
+.grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;}
+.table-stack{display:grid;gap:14px;}
+.callout{
+  border:1px solid var(--line);border-left:3px solid var(--amber);
+  background:rgba(255,180,84,.055);border-radius:0 12px 12px 0;padding:14px 18px;margin:14px 0;
+}
+.callout.danger{border-left-color:var(--red);background:rgba(255,107,107,.06);}
+.callout.ok{border-left-color:var(--green);background:rgba(126,231,135,.05);}
+.callout .tag{font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--amber);display:block;margin-bottom:4px;}
+.callout.danger .tag{color:var(--red);}
+.callout.ok .tag{color:var(--green);}
+.tag-pill{display:inline-block;font-family:var(--mono);font-size:11px;padding:2px 8px;border-radius:999px;border:1px solid var(--line2);color:var(--muted);white-space:nowrap;}
+.tag-pill.amber{color:var(--amber);border-color:rgba(255,180,84,.35);background:rgba(255,180,84,.06);}
+.tag-pill.red{color:var(--red);border-color:rgba(255,107,107,.35);background:rgba(255,107,107,.06);}
+.tag-pill.green{color:var(--green);border-color:rgba(126,231,135,.35);background:rgba(126,231,135,.06);}
+.tag-pill.cyan{color:var(--cyan);border-color:rgba(90,212,230,.35);background:rgba(90,212,230,.06);}
+
+/* ---------- tables ---------- */
+.table-wrap{border:1px solid var(--line);border-radius:12px;overflow:auto;background:var(--panel);}
+table{width:100%;border-collapse:collapse;font-size:13px;min-width:720px;}
+thead th{
+  position:sticky;top:0;background:#0b121a;color:var(--muted);
+  font-family:var(--mono);font-weight:500;font-size:10.5px;letter-spacing:.08em;
+  text-transform:uppercase;text-align:left;padding:11px 12px;border-bottom:1px solid var(--line2);
+  white-space:nowrap;z-index:1;
+}
+tbody td{padding:10px 12px;border-bottom:1px solid rgba(30,45,61,.65);vertical-align:top;color:#c7d3e0;}
+tbody tr:last-child td{border-bottom:none;}
+tbody tr:hover{background:rgba(90,212,230,.035);}
+td.num,th.num{font-family:var(--mono);white-space:nowrap;}
+td.pin{font-family:var(--mono);color:var(--amber);font-weight:600;white-space:nowrap;}
+tr.bad td{background:rgba(255,107,107,.055);}
+tr.warn td{background:rgba(255,180,84,.04);}
+.ok{color:var(--green);}
+.warn{color:var(--amber);}
+.bad{color:var(--red);}
+.mono{font-family:var(--mono);}
+.small{font-size:12px;color:var(--muted);}
+.kbd{font-family:var(--mono);font-size:12px;border:1px solid var(--line2);border-bottom-width:2px;border-radius:5px;padding:1px 5px;background:#0b121a;color:#dbe6f2;}
+
+/* ---------- calculator ---------- */
+.calc{display:grid;gap:16px;}
+.calc-controls{
+  display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;
+  border:1px solid var(--line);border-radius:12px;padding:16px;background:var(--panel2);
+}
+.calc-controls label{display:flex;flex-direction:column;gap:6px;font-size:11.5px;color:var(--muted);font-family:var(--mono);letter-spacing:.03em;}
+.calc-controls input[type=number]{
+  width:100%;background:#070b10;border:1px solid var(--line2);color:var(--text);
+  border-radius:8px;padding:8px 10px;font-family:var(--mono);font-size:14px;outline:none;
+}
+.calc-controls input[type=number]:focus{border-color:var(--cyan);box-shadow:0 0 0 2px rgba(90,212,230,.12);}
+.calc-controls input[type=range]{
+  -webkit-appearance:none;appearance:none;height:4px;border-radius:4px;background:#223447;outline:none;margin:10px 0 6px;
+}
+.calc-controls input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none;width:16px;height:16px;border-radius:50%;background:var(--amber);
+  border:2px solid #070b10;box-shadow:0 0 0 1px var(--amber),0 0 12px rgba(255,180,84,.5);cursor:pointer;
+}
+.calc-controls .val{color:var(--amber);font-size:13px;}
+.calc-table{max-height:520px;}
+
+/* ---------- code ---------- */
+.code-tabs{border:1px solid var(--line);border-radius:14px;overflow:hidden;background:var(--panel);}
+.tab-head{display:flex;flex-wrap:wrap;gap:2px;background:#0a1119;border-bottom:1px solid var(--line);padding:6px 6px 0;}
+.tab-btn{
+  border:1px solid transparent;border-bottom:none;background:transparent;color:var(--muted);
+  font-family:var(--mono);font-size:12px;padding:8px 14px;border-radius:8px 8px 0 0;cursor:pointer;
+}
+.tab-btn:hover{color:var(--text);background:rgba(90,212,230,.05);}
+.tab-btn.active{color:var(--amber);background:var(--panel);border-color:var(--line);}
+.tab-panel{display:none;}
+.tab-panel.active{display:block;}
+.code-card{position:relative;background:var(--panel);}
+.code-head{
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+  padding:10px 14px;border-bottom:1px solid var(--line);background:#0b121a;
+}
+.code-head .file{font-family:var(--mono);font-size:12px;color:var(--cyan);letter-spacing:.03em;}
+.copy{
+  border:1px solid var(--line2);background:#070b10;color:var(--muted);
+  border-radius:7px;padding:4px 10px;font-family:var(--mono);font-size:11px;cursor:pointer;
+}
+.copy:hover{color:var(--text);border-color:var(--cyan);}
+pre{
+  margin:0;padding:18px 20px;overflow:auto;max-height:640px;
+  background:#05090d;color:#c9d6e4;font-size:12.3px;line-height:1.7;
+  border-left:2px solid rgba(255,180,84,.55);
+}
+pre code{font-family:var(--mono);white-space:pre;}
+.cm{color:#5f7a91;font-style:italic;}
+.kw{color:#ff9e64;}
+.num{color:#b392f0;}
+.str{color:#9ece6a;}
+
+/* ---------- misc ---------- */
+ul,ol{color:#c2cfdd;padding-left:22px;}
+li{margin:5px 0;}
+li::marker{color:var(--amber);}
+.steps{counter-reset:step;list-style:none;padding-left:0;}
+.steps li{position:relative;padding-left:42px;margin:14px 0;}
+.steps li::before{
+  counter-increment:step;content:counter(step,decimal-leading-zero);
+  position:absolute;left:0;top:1px;width:28px;height:28px;border-radius:8px;
+  display:grid;place-items:center;font-family:var(--mono);font-size:11px;
+  color:var(--amber);border:1px solid rgba(255,180,84,.35);background:rgba(255,180,84,.06);
+}
+.footer{
+  border-top:1px solid var(--line);color:var(--dim);font-size:12px;
+  padding:26px 28px 40px;max-width:1180px;margin:0 auto;font-family:var(--mono);
+}
+.footer a{color:var(--muted);}
+hr{border:none;border-top:1px solid var(--line);margin:26px 0;}
+.section-head{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;margin-bottom:14px;}
+.section-head .lead{margin:0;}
+@media (max-width:1020px){
+  .layout{grid-template-columns:1fr;gap:18px;}
+  .sidebar{position:static;}
+  .sidebar nav{flex-direction:row;overflow-x:auto;border-left:none;border-bottom:1px solid var(--line);padding-bottom:6px;}
+  .sidebar a{border-left:none;border-bottom:2px solid transparent;white-space:nowrap;margin-left:0;}
+  .sidebar a.active{border-left:none;border-bottom-color:var(--amber);}
+  .wave{opacity:.22;width:70vw;}
+}
+@media (max-width:760px){
+  .hero-inner{padding:44px 18px 32px;}
+  .stats{grid-template-columns:repeat(2,1fr);}
+  .layout{padding:24px 16px 60px;}
+  .grid2,.grid3{grid-template-columns:1fr;}
+  .calc-controls{grid-template-columns:1fr 1fr;}
+  h1{font-size:34px;}
+  table{min-width:680px;}
+}
+@media print{
+  body{background:#fff;color:#111;}
+  body::before,.sidebar,.wave,.copy,.tab-head{display:none!important;}
+  .layout{display:block;max-width:none;padding:0;}
+  .hero{background:#fff;border-bottom:1px solid #ccc;}
+  .badge,.stat,.card,.callout,.code-tabs,.table-wrap{background:#fff;color:#111;box-shadow:none;border-color:#ccc;}
+  .tab-panel{display:block!important;}
+  pre{background:#f6f6f6;color:#111;max-height:none;}
+}
+</style>
+<style>
+/* 64-pin specific additions */
+tr.optional td{background:rgba(90,212,230,.045);}
+tr.optional td:first-child{color:var(--cyan);}
+tr.na td{background:rgba(255,107,107,.06);}
+.calc-controls.six{grid-template-columns:repeat(6,minmax(0,1fr));}
+@media(max-width:760px){.calc-controls.six{grid-template-columns:1fr 1fr;}}
+.badge.red{border-color:rgba(255,107,107,.4);background:rgba(255,107,107,.08);color:var(--red);}
+.badge.red .dot{background:var(--red);box-shadow:0 0 12px var(--red);}
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="hero-inner">
+    <div class="badge"><span class="dot"></span> R7F701690 · RH850/F1KM-S1 · 64-pin LQFP · CS+ / CCRH850</div>
+    <h1>64-pin 九路 PWM <span class="accent">适配指南</span></h1>
+    <p class="subtitle">200 kHz – 400 kHz · 8 路硬件 PWM + 1 路软件 PWM · P10_14 改用 PWGA19 · P0_6 用 OSTM0</p>
+    <div class="stats">
+      <div class="stat"><div class="k">Package</div><div class="v">64 <small>pin</small></div></div>
+      <div class="stat"><div class="k">Hardware PWM</div><div class="v">8 <small>路</small></div></div>
+      <div class="stat"><div class="k">Software PWM</div><div class="v">1 <small>路</small></div></div>
+      <div class="stat"><div class="k">Range</div><div class="v">200–400 <small>kHz</small></div></div>
+    </div>
+  </div>
+  <svg class="wave" viewBox="0 0 640 180" aria-hidden="true">
+    <path class="w1" d="M0 40 H80 V120 H160 V40 H240 V120 H320 V40 H400 V120 H480 V40 H560 V120 H640"/>
+    <path class="w2" d="M0 90 H40 V150 H100 V90 H140 V150 H200 V90 H240 V150 H300 V90 H340 V150 H400 V90 H440 V150 H500 V90 H540 V150 H600 V90 H640"/>
+    <path class="w3" d="M0 20 H30 V70 H60 V20 H90 V70 H120 V20 H150 V70 H180 V20 H210 V70 H240 V20 H270 V70 H300 V20 H330 V70 H360 V20 H390 V70 H420 V20 H450 V70 H480 V20 H510 V70 H540 V20 H570 V70 H600 V20 H640"/>
+  </svg>
+</header>
+
+<div class="layout">
+  <aside class="sidebar">
+    <p class="title">Contents</p>
+    <nav>
+      <a href="#answer" class="active">01 · 直接回答</a>
+      <a href="#pins">02 · 64-pin 引脚映射</a>
+      <a href="#plan">03 · 修订通道方案</a>
+      <a href="#p06">04 · P0_6 软件 PWM</a>
+      <a href="#calc">05 · 分辨率与计算器</a>
+      <a href="#code">06 · 代码</a>
+      <a href="#csplus">07 · CS+ 集成</a>
+      <a href="#refs">08 · 参考资料</a>
+    </nav>
+  </aside>
+
+  <main>
+
+    <section id="answer">
+      <div class="section-head">
+        <div>
+          <h2><span class="num">01</span> 直接回答</h2>
+          <p class="lead">R7F701690 是 <strong>64-pin LQFP</strong>，不是 100-pin。不能把 100-pin 方案 1:1 照搬。</p>
+        </div>
+      </div>
+
+      <div class="callout danger">
+        <span class="tag">结论</span>
+        <strong>8 路硬件 PWM + 1 路软件 PWM。</strong> P10_14 在 64-pin 上没有 TAUB0O7，只能用 <strong>PWGA19O</strong>；P0_6 在 64-pin 上没有硬件 PWM，用 <strong>OSTM0 软件定时器</strong> 生成。
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>引脚</th><th>100-pin 原方案</th><th>R7F701690 64-pin 实际</th><th>结论</th></tr></thead>
+          <tbody>
+            <tr><td class="pin">P10_6</td><td class="mono">TAUD0O13</td><td class="mono">TAUD0O13（pin 51）</td><td class="ok">✅ 完全一致</td></tr>
+            <tr><td class="pin">P10_14</td><td class="mono">TAUB0O7</td><td class="mono">PWGA19O（pin 59）</td><td class="warn">⚠️ 可 PWM，但不是 TAUB0</td></tr>
+            <tr><td class="pin">P0_6</td><td class="mono">PWGA35O</td><td class="mono">GPIO + OSTM0 软件 PWM（pin 11）</td><td class="ok">✅ 软件 PWM 实现</td></tr>
+            <tr><td class="pin">P10_2</td><td class="mono">TAUD0O5</td><td class="mono">TAUD0O5（pin 64）</td><td class="ok">✅ 功能一致，脚号不同</td></tr>
+            <tr><td class="pin">P10_0</td><td class="mono">TAUJ1O3</td><td class="mono">TAUJ1O3（pin 62）</td><td class="ok">✅ 功能一致，脚号不同</td></tr>
+            <tr><td class="pin">P0_2</td><td class="mono">TAUJ2O3</td><td class="mono">TAUJ2O3（pin 6）</td><td class="ok">✅ 功能一致，脚号不同</td></tr>
+            <tr><td class="pin">P10_3</td><td class="mono">TAUD0O7</td><td class="mono">TAUD0O7（pin 1）</td><td class="ok">✅ 功能一致，脚号不同</td></tr>
+            <tr><td class="pin">P8_5</td><td class="mono">TAUJ0O3</td><td class="mono">TAUJ0O3（pin 31）</td><td class="ok">✅ 功能一致，脚号不同</td></tr>
+            <tr><td class="pin">P10_8</td><td class="mono">TAUJ3O2</td><td class="mono">TAUJ3O2（pin 53）</td><td class="ok">✅ 功能一致，脚号不同</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="grid2" style="margin-top:14px;">
+        <div class="card">
+          <span class="tag-pill amber">P10_14</span>
+          <h3>PWGA19O 替代 TAUB0O7</h3>
+          <p>64-pin 第 59 脚，第 1 复用 <span class="mono">PWGA19O</span>。PWGA19 属于 PWM-Diag，40 MHz 时钟域，12 位周期；200–400 kHz 下占空比步进 0.5%–1%。</p>
+        </div>
+        <div class="card">
+          <span class="tag-pill red">P0_6</span>
+          <h3>OSTM0 软件 PWM</h3>
+          <p>64-pin 第 11 脚，复用只有 <span class="mono">INTP2 / DPIN10 / SELDP2</span>。不能配成 TAUD/TAUB/TAUJ/PWGA，改用 <span class="mono">OSTM0</span> 自由运行比较 + INTOSTM0 中断翻转 GPIO。</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="pins">
+      <h2><span class="num">02</span> 64-pin 引脚映射</h2>
+      <p class="lead">以下全部按 R7F701690 / 64-pin LQFP 的 64-pin 复用列核对。</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>引脚</th><th class="num">64-pin 脚号</th><th>PWM 复用</th><th>Alternative</th><th>PFC/PFCE/PFCAE</th><th>定时器/通道</th><th>备注</th></tr></thead>
+          <tbody>
+            <tr><td class="pin">P10_2</td><td class="num">64</td><td class="mono">TAUD0O5</td><td>1st</td><td class="mono">0/0/0</td><td class="mono">TAUD0 CH5</td><td>从通道</td></tr>
+            <tr><td class="pin">P10_0</td><td class="num">62</td><td class="mono">TAUJ1O3</td><td>6th</td><td class="mono">1/0/1</td><td class="mono">TAUJ1 CH3</td><td>主 CH0</td></tr>
+            <tr><td class="pin">P0_2</td><td class="num">6</td><td class="mono">TAUJ2O3</td><td>6th</td><td class="mono">1/0/1</td><td class="mono">TAUJ2 CH3</td><td>主 CH0</td></tr>
+            <tr><td class="pin">P10_3</td><td class="num">1</td><td class="mono">TAUD0O7</td><td>1st</td><td class="mono">0/0/0</td><td class="mono">TAUD0 CH7</td><td>从通道</td></tr>
+            <tr><td class="pin">P0_6</td><td class="num">11</td><td class="mono">GPIO</td><td>—</td><td class="mono">—</td><td class="mono">OSTM0 软件 PWM</td><td><strong>只有 INTP2/DPIN10/SELDP2</strong></td></tr>
+            <tr class="warn"><td class="pin">P10_14</td><td class="num">59</td><td class="mono">PWGA19O</td><td>1st</td><td class="mono">0/0/0</td><td class="mono">PWGA19</td><td>不是 TAUB0</td></tr>
+            <tr><td class="pin">P8_5</td><td class="num">31</td><td class="mono">TAUJ0O3</td><td>1st</td><td class="mono">0/0/0</td><td class="mono">TAUJ0 CH3</td><td>主 CH0</td></tr>
+            <tr class="ok"><td class="pin">P10_6</td><td class="num">51</td><td class="mono">TAUD0O13</td><td>1st</td><td class="mono">0/0/0</td><td class="mono">TAUD0 CH13</td><td>主 CH12</td></tr>
+            <tr><td class="pin">P10_8</td><td class="num">53</td><td class="mono">TAUJ3O2</td><td>7th</td><td class="mono">0/1/1</td><td class="mono">TAUJ3 CH2</td><td>主 CH0</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="small">64-pin 下 P10_14 只有 1st 复用 PWGA19O；TAUB0O7 在 80/100-pin 才有。P0_6 在 64/80/100-pin 都没有 TAU/TAUB/TAUD 输出，100-pin 额外有 PWGA35O，但 64-pin 没有。</p>
+    </section>
+
+    <section id="plan">
+      <h2><span class="num">03</span> 修订通道方案</h2>
+      <p class="lead">8 路硬件 PWM + 1 路 P0_6 软件 PWM；软件 PWM 用 OSTM0，见下一节。</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>引脚</th><th>定时器</th><th>主通道</th><th>从通道</th><th>时钟域</th><th class="num">最大时钟</th><th>PFC alt</th></tr></thead>
+          <tbody>
+            <tr><td class="pin">P10_2</td><td class="mono">TAUD0</td><td class="mono">CH4</td><td class="mono">CH5</td><td class="mono">IPERI1</td><td class="num">80 MHz</td><td class="mono">0</td></tr>
+            <tr><td class="pin">P10_0</td><td class="mono">TAUJ1</td><td class="mono">CH0</td><td class="mono">CH3</td><td class="mono">IPERI1</td><td class="num">80 MHz</td><td class="mono">5</td></tr>
+            <tr><td class="pin">P0_2</td><td class="mono">TAUJ2</td><td class="mono">CH0</td><td class="mono">CH3</td><td class="mono">ATAUJ</td><td class="num">40 MHz</td><td class="mono">5</td></tr>
+            <tr><td class="pin">P10_3</td><td class="mono">TAUD0</td><td class="mono">CH6</td><td class="mono">CH7</td><td class="mono">IPERI1</td><td class="num">80 MHz</td><td class="mono">0</td></tr>
+            <tr class="warn"><td class="pin">P10_14</td><td class="mono">PWGA19</td><td class="mono">—</td><td class="mono">PWGA19</td><td class="mono">IPERI2</td><td class="num">40 MHz</td><td class="mono">0</td></tr>
+            <tr><td class="pin">P8_5</td><td class="mono">TAUJ0</td><td class="mono">CH0</td><td class="mono">CH3</td><td class="mono">ATAUJ</td><td class="num">40 MHz</td><td class="mono">0</td></tr>
+            <tr class="ok"><td class="pin">P10_6</td><td class="mono">TAUD0</td><td class="mono">CH12</td><td class="mono">CH13</td><td class="mono">IPERI1</td><td class="num">80 MHz</td><td class="mono">0</td></tr>
+            <tr><td class="pin">P10_8</td><td class="mono">TAUJ3</td><td class="mono">CH0</td><td class="mono">CH2</td><td class="mono">IPERI1</td><td class="num">80 MHz</td><td class="mono">6</td></tr>
+            <tr><td class="pin">P0_6</td><td class="mono">OSTM0</td><td class="mono">—</td><td class="mono">GPIO</td><td class="mono">CPUCLK_L</td><td class="num">60 MHz</td><td class="mono">—</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="small">P10_14 在 64-pin 的 PFC alt = 0（PWGA19O 第 1 复用），不是 100-pin 的 4th（TAUB0O7）。P0_6 配成 GPIO 输出，由 OSTM0 软件 PWM 翻转。</p>
+    </section>
+
+    <section id="p06">
+      <h2><span class="num">04</span> P0_6：OSTM0 软件 PWM</h2>
+      <p class="lead">P0_6 没有硬件 PWM，用 OSTM0 自由运行比较模式 + INTOSTM0 中断翻转 GPIO。最终是 8 路硬件 PWM + 1 路软件 PWM。</p>
+
+      <div class="grid3">
+        <div class="card">
+          <span class="tag-pill green">方案</span>
+          <h3>OSTM0 自由运行比较</h3>
+          <p>32 位计数器从 0 向上计数；每次比较匹配进入 <span class="mono">pwm_sw_isr()</span>，翻转 P0_6，并把下一次比较值设为 <span class="mono">CMP + 高/低计数</span>。</p>
+        </div>
+        <div class="card">
+          <span class="tag-pill amber">时钟</span>
+          <h3>CPUCLK_L = 60 MHz</h3>
+          <p>200–400 kHz 时 N = 150–300。400 kHz 占空比步进约 0.67%，200 kHz 约 0.33%。</p>
+        </div>
+        <div class="card">
+          <span class="tag-pill red">代价</span>
+          <h3>CPU 负载 + 抖动</h3>
+          <p>400 kHz 时约 80 万次中断/秒。120 MHz CPU 下每 150 周期一次中断，估计 20%–50% CPU；抖动取决于中断延迟和优先级。</p>
+        </div>
+      </div>
+
+      <div class="callout">
+        <span class="tag">实现要点</span>
+        P0_6 配成 GPIO 输出；OSTM0 用自由运行比较模式（<span class="mono">CTL=0x02</span>），在 <span class="mono">INTOSTM0</span> 中断里调用 <span class="mono">pwm_sw_isr()</span>。ISR 必须短，建议给 INTOSTM0 较高优先级，避免其他长中断造成抖动。
+      </div>
+
+      <div class="callout ok">
+        <span class="tag">如果允许改板</span>
+        仍可把 P0_6 网络改到 <strong>P10_4（TAUD0O9，80 MHz，pin 2）</strong>，把 <span class="mono">PWM9_USE_P10_4_FOR_P0_6</span> 设为 1，换回硬件 PWM。P10_5（TAUD0O11）和 P10_7（TAUD0O15）也可作为备选。
+      </div>
+
+      <div class="callout danger">
+        <span class="tag">不要做的事</span>
+        不要按 PWGA35 配置 P0_6（64-pin 没有 PWGA35）；也不要在 P0_6 上找 TAUD/TAUB/TAUJ 复用，它只有 INTP2/DPIN10/SELDP2。
+      </div>
+    </section>
+
+    <section id="calc">
+      <h2><span class="num">05</span> 分辨率与计算器</h2>
+      <p class="lead">80 MHz 通道 @400 kHz 占空比步进 0.5%；40 MHz 通道（含 P10_14/PWGA19、P8_5、P0_2）为 1%；P0_6 软件 PWM（OSTM0 60 MHz）约 0.67%。</p>
+
+      <div class="table-wrap" style="margin-bottom:14px;">
+        <table>
+          <thead><tr><th>时钟域</th><th>使用它的通道</th><th class="num">最大频率</th><th class="num">200 kHz 计数</th><th class="num">400 kHz 计数</th><th class="num">400 kHz 占空比步进</th></tr></thead>
+          <tbody>
+            <tr><td class="mono">CKSCLK_IPERI1</td><td>TAUD0、TAUJ1、TAUJ3</td><td class="num">80 MHz</td><td class="num">400</td><td class="num">200</td><td class="num ok">0.50%</td></tr>
+            <tr><td class="mono">CKSCLK_IPERI2</td><td>PWGA19、PWBA/PWSA</td><td class="num">40 MHz</td><td class="num">200</td><td class="num">100</td><td class="num warn">1.00%</td></tr>
+            <tr><td class="mono">CKSCLK_ATAUJ</td><td>TAUJ0、TAUJ2</td><td class="num">40 MHz</td><td class="num">200</td><td class="num">100</td><td class="num warn">1.00%</td></tr>
+            <tr><td class="mono">CPUCLK_L (OSTM0)</td><td>P0_6 软件 PWM</td><td class="num">60 MHz</td><td class="num">300</td><td class="num">150</td><td class="num warn">0.67%</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="calc">
+        <div class="calc-controls six">
+          <label>IPERI1 (MHz)<input id="pclk1" type="number" value="80" min="1" max="120" step="1"></label>
+          <label>IPERI2 (MHz)<input id="pclk2" type="number" value="40" min="1" max="80" step="1"></label>
+          <label>ATAUJ (MHz)<input id="pclkA" type="number" value="40" min="1" max="80" step="1"></label>
+          <label>OSTM0 (MHz)<input id="pclkS" type="number" value="60" min="1" max="120" step="1"></label>
+          <label>目标频率 <span class="val" id="freqVal">300 kHz</span><input id="freq" type="range" min="200" max="400" value="300" step="1"></label>
+          <label>目标占空比 <span class="val" id="dutyVal">50.0 %</span><input id="duty" type="range" min="0" max="100" value="50" step="0.1"></label>
+        </div>
+        <div class="table-wrap calc-table">
+          <table>
+            <thead><tr><th>引脚</th><th>定时器</th><th class="num">时钟</th><th class="num">N</th><th class="num">周期值</th><th class="num">占空值</th><th class="num">实际频率</th><th class="num">误差</th><th class="num">占空步进</th><th class="num">频率步进</th></tr></thead>
+            <tbody id="calcBody"></tbody>
+          </table>
+        </div>
+        <p class="small">周期值：TAUD/TAUJ 为 CDR_master；PWGA19 为 PWGAPRD。占空值：TAUD/TAUJ 为 CDR_slave；PWGA19 为 CRDR。P0_6 软件 PWM：周期值 = OSTM 计数 N，占空值 = 高/低计数（高/低）。P10_4 是改板后的可选硬件替代。</p>
+      </div>
+    </section>
+
+    <section id="code">
+      <h2><span class="num">06</span> 代码</h2>
+      <p class="lead">64-pin 适配版：P10_14 用 PWGA19，P0_6 用 OSTM0 软件 PWM；改板到 P10_4 时把 <span class="mono">PWM9_USE_P10_4_FOR_P0_6</span> 设为 1。</p>
+
+      <div class="code-tabs">
+        <div class="tab-head">
+          <button class="tab-btn active" data-tab="tab-h64">pwm9_64.h</button>
+          <button class="tab-btn" data-tab="tab-c64">pwm9_64.c</button>
+          <button class="tab-btn" data-tab="tab-main64">main_pwm_example_64.c</button>
+        </div>
+        <div class="tab-panel active" id="tab-h64">
+          <div class="code-card">
+            <div class="code-head"><span class="file">pwm9_64.h</span><button class="copy">复制</button></div>
+            <pre><code></code></pre>
+            <script type="text/plain" class="code-src">
+/* pwm9_64.h - R7F701690 (RH850/F1KM-S1 64-pin) 9-channel PWM driver
+ *
+ * Target pins (64-pin LQFP):
+ *   P10_2, P10_0, P0_2, P10_3, P0_6, P10_14, P8_5, P10_6, P10_8
+ *
+ * P0_6 has NO timer/PWGA output on the 64-pin package.
+ * By default P0_6 is driven by software PWM using OSTM0.
+ * Set PWM9_USE_P10_4_FOR_P0_6 to 1 only if the P0_6 net is
+ * reworked to P10_4 (TAUD0O9).
+ *
+ * Frequency range: 200 kHz - 400 kHz
+ * Duty range:      0 - 1000 permille (0.0% - 100.0%)
+ *
+ * The clock macros below are maximum values from the F1KM-S1 electrical
+ * characteristics. Replace them with the actual clock-tree values of your
+ * project if the clocks are divided down.
+ */
+#ifndef PWM9_64_H
+#define PWM9_64_H
+
+#include <stdint.h>
+
+/* P0_6 has no timer/PWGA output on the 64-pin package.
+ * Set to 1 only after reworking the P0_6 net to P10_4 (TAUD0O9).
+ */
+#ifndef PWM9_USE_P10_4_FOR_P0_6
+#define PWM9_USE_P10_4_FOR_P0_6 0
+#endif
+
+typedef enum {
+    PWM_P10_2 = 0,
+    PWM_P10_0,
+    PWM_P0_2,
+    PWM_P10_3,
+    PWM_P0_6,
+    PWM_P10_14,
+    PWM_P8_5,
+    PWM_P10_6,
+    PWM_P10_8,
+    PWM_CH_COUNT
+} pwm_ch_t;
+
+#ifndef PWM_PCLK_IPERI1_HZ
+#define PWM_PCLK_IPERI1_HZ  80000000UL   /* TAUD0, TAUJ1, TAUJ3 */
+#endif
+
+#ifndef PWM_PCLK_IPERI2_HZ
+#define PWM_PCLK_IPERI2_HZ  40000000UL   /* PWBA/PWGA/PWSA */
+#endif
+
+#ifndef PWM_PCLK_ATAUJ_HZ
+#define PWM_PCLK_ATAUJ_HZ   40000000UL   /* TAUJ0, TAUJ2 */
+#endif
+
+/* OSTM0 clock = CPUCLK_L. F1KM-S1 max is 60 MHz. */
+#ifndef PWM_SW_PCLK_HZ
+#define PWM_SW_PCLK_HZ      60000000UL
+#endif
+
+/* Configure all nine pins and start every channel at 250 kHz / 50%. */
+void pwm9_init(void);
+
+/* Software PWM ISR for P0_6 (OSTM0 free-run compare).
+ * Route the INTOSTM0 vector to this function in your CS+ project.
+ */
+void pwm_sw_isr(void);
+
+/* Set frequency and duty of one channel.
+ * freq_hz: 200000 .. 400000
+ * duty_permille: 0 .. 1000
+ * Returns 0 on success, -1 on error.
+ */
+int pwm9_set_freq_duty(pwm_ch_t ch, uint32_t freq_hz, uint16_t duty_permille);
+
+/* Update duty only. The frequency is kept unchanged.
+ * For TAUD/TAUJ the new value is applied at the next period.
+ * For PWGA19 the new value is applied at the next falling edge.
+ * For P0_6 software PWM the new counts are applied at the next edge.
+ */
+int pwm9_set_duty(pwm_ch_t ch, uint16_t duty_permille);
+
+/* Read back the actual generated frequency/duty (after integer rounding). */
+uint32_t pwm9_get_actual_freq(pwm_ch_t ch);
+uint16_t pwm9_get_actual_duty(pwm_ch_t ch);
+
+#endif /* PWM9_64_H */
+
+</script>
+          </div>
+        </div>
+        <div class="tab-panel" id="tab-c64">
+          <div class="code-card">
+            <div class="code-head"><span class="file">pwm9_64.c</span><button class="copy">复制</button></div>
+            <pre><code></code></pre>
+            <script type="text/plain" class="code-src">
+/* pwm9.c - RH850/F1KM-S1 9-channel PWM driver (CS+ / CCRH850)
+ *
+ * Frequency range: 200 kHz - 400 kHz
+ * Duty range:      0 - 1000 permille
+ *
+ * Channel allocation (all frequencies independent):
+ *   P10_2  : TAUD0 CH4 (master) -> CH5 (slave)   TAUD0O5
+ *   P10_0  : TAUJ1 CH0 (master) -> CH3 (slave)   TAUJ1O3
+ *   P0_2   : TAUJ2 CH0 (master) -> CH3 (slave)   TAUJ2O3
+ *   P10_3  : TAUD0 CH6 (master) -> CH7 (slave)   TAUD0O7
+ *   P0_6   : GPIO + OSTM0 software PWM (64-pin)
+ *   P10_14 : PWGA19                              PWGA19O
+ *   P8_5   : TAUJ0 CH0 (master) -> CH3 (slave)   TAUJ0O3
+ *   P10_6  : TAUD0 CH12 (master) -> CH13 (slave) TAUD0O13
+ *   P10_8  : TAUJ3 CH0 (master) -> CH2 (slave)   TAUJ3O2
+ *
+ * Comments are ASCII-only to avoid CS+ source encoding issues.
+ */
+#include "pwm9_64.h"
+
+/* ------------------------------------------------------------------ */
+/* Timer base addresses                                               */
+/* ------------------------------------------------------------------ */
+#define TAUD0_BASE   0xFFE20000UL
+#define TAUB0_BASE   0xFFE30000UL
+#define TAUJ0_BASE   0xFFE50000UL
+#define TAUJ1_BASE   0xFFE51000UL
+#define TAUJ2_BASE   0xFFE50100UL
+#define TAUJ3_BASE   0xFFE51100UL
+#define PWBA0_BASE   0xFFE72800UL
+#define PWGA19_BASE  (0xFFE71000UL + 0x40UL * 19UL)
+#define SLPW_BASE    0xFFE73000UL
+#define PWSA0_BASE   0xFFE70000UL
+#define PORT_BASE    0xFFC10000UL
+
+/* ------------------------------------------------------------------ */
+/* Port registers (Section 2C.9: offset from <PORTn_base>)             */
+/* ------------------------------------------------------------------ */
+#define PORT_PM(n)     (*(volatile uint16_t *)(PORT_BASE + 0x0300UL + (n) * 4UL))
+#define PORT_PMC(n)    (*(volatile uint16_t *)(PORT_BASE + 0x0400UL + (n) * 4UL))
+#define PORT_PFC(n)    (*(volatile uint16_t *)(PORT_BASE + 0x0500UL + (n) * 4UL))
+#define PORT_PFCE(n)   (*(volatile uint16_t *)(PORT_BASE + 0x0600UL + (n) * 4UL))
+#define PORT_PFCAE(n)  (*(volatile uint16_t *)(PORT_BASE + 0x0A00UL + (n) * 4UL))
+#define PORT_PIBC(n)   (*(volatile uint16_t *)(PORT_BASE + 0x4000UL + (n) * 4UL))
+#define PORT_PBDC(n)   (*(volatile uint16_t *)(PORT_BASE + 0x4100UL + (n) * 4UL))
+#define PORT_PIPC(n)   (*(volatile uint16_t *)(PORT_BASE + 0x4200UL + (n) * 4UL))
+#define P0             (*(volatile uint16_t *)(PORT_BASE + 0x0000UL))
+
+/* ------------------------------------------------------------------ */
+/* TAUD0 registers (Section 32.3, offsets from <TAUD0_base>)           */
+/* ------------------------------------------------------------------ */
+#define TAUD_CDR(m)    (*(volatile uint16_t *)(TAUD0_BASE + (m) * 4UL))
+#define TAUD_CMOR(m)   (*(volatile uint16_t *)(TAUD0_BASE + 0x200UL + (m) * 4UL))
+#define TAUD_CMUR(m)   (*(volatile uint16_t *)(TAUD0_BASE + 0x0C0UL + (m) * 4UL))
+#define TAUD_TOE       (*(volatile uint16_t *)(TAUD0_BASE + 0x05CUL))
+#define TAUD_TOM       (*(volatile uint16_t *)(TAUD0_BASE + 0x248UL))
+#define TAUD_TOC       (*(volatile uint16_t *)(TAUD0_BASE + 0x24CUL))
+#define TAUD_TOL       (*(volatile uint16_t *)(TAUD0_BASE + 0x040UL))
+#define TAUD_TDE       (*(volatile uint16_t *)(TAUD0_BASE + 0x250UL))
+#define TAUD_TDM       (*(volatile uint16_t *)(TAUD0_BASE + 0x254UL))
+#define TAUD_TDL       (*(volatile uint16_t *)(TAUD0_BASE + 0x054UL))
+#define TAUD_TRO       (*(volatile uint16_t *)(TAUD0_BASE + 0x04CUL))
+#define TAUD_TRE       (*(volatile uint16_t *)(TAUD0_BASE + 0x258UL))
+#define TAUD_TRC       (*(volatile uint16_t *)(TAUD0_BASE + 0x25CUL))
+#define TAUD_TME       (*(volatile uint16_t *)(TAUD0_BASE + 0x050UL))
+#define TAUD_RDE       (*(volatile uint16_t *)(TAUD0_BASE + 0x260UL))
+#define TAUD_RDM       (*(volatile uint16_t *)(TAUD0_BASE + 0x264UL))
+#define TAUD_RDS       (*(volatile uint16_t *)(TAUD0_BASE + 0x268UL))
+#define TAUD_RDC       (*(volatile uint16_t *)(TAUD0_BASE + 0x26CUL))
+#define TAUD_RDT       (*(volatile uint16_t *)(TAUD0_BASE + 0x044UL))
+#define TAUD_RSF       (*(volatile uint16_t *)(TAUD0_BASE + 0x048UL))
+#define TAUD_TS        (*(volatile uint16_t *)(TAUD0_BASE + 0x1C4UL))
+#define TAUD_TE        (*(volatile uint16_t *)(TAUD0_BASE + 0x1C0UL))
+#define TAUD_TT        (*(volatile uint16_t *)(TAUD0_BASE + 0x1C8UL))
+#define TAUD_TPS       (*(volatile uint16_t *)(TAUD0_BASE + 0x240UL))
+
+/* TAUB0 is not available on the 64-pin package. */
+#if 0
+/* ------------------------------------------------------------------ */
+/* TAUB0 registers (Section 31.3, offsets from <TAUB0_base>)           */
+/* ------------------------------------------------------------------ */
+#define TAUB_CDR(m)    (*(volatile uint16_t *)(TAUB0_BASE + (m) * 4UL))
+#define TAUB_CMOR(m)   (*(volatile uint16_t *)(TAUB0_BASE + 0x200UL + (m) * 4UL))
+#define TAUB_CMUR(m)   (*(volatile uint16_t *)(TAUB0_BASE + 0x0C0UL + (m) * 4UL))
+#define TAUB_TOE       (*(volatile uint16_t *)(TAUB0_BASE + 0x05CUL))
+#define TAUB_TOM       (*(volatile uint16_t *)(TAUB0_BASE + 0x248UL))
+#define TAUB_TOC       (*(volatile uint16_t *)(TAUB0_BASE + 0x24CUL))
+#define TAUB_TOL       (*(volatile uint16_t *)(TAUB0_BASE + 0x040UL))
+#define TAUB_TDE       (*(volatile uint16_t *)(TAUB0_BASE + 0x250UL))
+#define TAUB_TDL       (*(volatile uint16_t *)(TAUB0_BASE + 0x054UL))
+#define TAUB_RDE       (*(volatile uint16_t *)(TAUB0_BASE + 0x260UL))
+#define TAUB_RDM       (*(volatile uint16_t *)(TAUB0_BASE + 0x264UL))
+#define TAUB_RDS       (*(volatile uint16_t *)(TAUB0_BASE + 0x268UL))
+#define TAUB_RDC       (*(volatile uint16_t *)(TAUB0_BASE + 0x26CUL))
+#define TAUB_RDT       (*(volatile uint16_t *)(TAUB0_BASE + 0x044UL))
+#define TAUB_RSF       (*(volatile uint16_t *)(TAUB0_BASE + 0x048UL))
+#define TAUB_TS        (*(volatile uint16_t *)(TAUB0_BASE + 0x1C4UL))
+#define TAUB_TE        (*(volatile uint16_t *)(TAUB0_BASE + 0x1C0UL))
+#define TAUB_TT        (*(volatile uint16_t *)(TAUB0_BASE + 0x1C8UL))
+#define TAUB_TPS       (*(volatile uint16_t *)(TAUB0_BASE + 0x240UL))
+
+#endif /* TAUB0 not available on 64-pin */
+
+/* ------------------------------------------------------------------ */
+/* TAUJ registers (Section 33.3, offsets from <TAUJn_base>)            */
+/* ------------------------------------------------------------------ */
+#define TAUJ_CDR(b, m)    (*(volatile uint32_t *)((b) + (m) * 4UL))
+#define TAUJ_CNT(b, m)    (*(volatile uint32_t *)((b) + 0x10UL + (m) * 4UL))
+#define TAUJ_CMOR(b, m)   (*(volatile uint16_t *)((b) + 0x80UL + (m) * 4UL))
+#define TAUJ_CMUR(b, m)   (*(volatile uint16_t *)((b) + 0x20UL + (m) * 4UL))
+#define TAUJ_TOE(b)       (*(volatile uint16_t *)((b) + 0x60UL))
+#define TAUJ_TOM(b)       (*(volatile uint16_t *)((b) + 0x98UL))
+#define TAUJ_TOC(b)       (*(volatile uint16_t *)((b) + 0x9CUL))
+#define TAUJ_TOL(b)       (*(volatile uint16_t *)((b) + 0x64UL))
+#define TAUJ_RDE(b)       (*(volatile uint16_t *)((b) + 0xA0UL))
+#define TAUJ_RDM(b)       (*(volatile uint16_t *)((b) + 0xA4UL))
+#define TAUJ_RDT(b)       (*(volatile uint16_t *)((b) + 0x68UL))
+#define TAUJ_RSF(b)       (*(volatile uint16_t *)((b) + 0x6CUL))
+#define TAUJ_TS(b)        (*(volatile uint16_t *)((b) + 0x54UL))
+#define TAUJ_TE(b)        (*(volatile uint16_t *)((b) + 0x50UL))
+#define TAUJ_TT(b)        (*(volatile uint16_t *)((b) + 0x58UL))
+#define TAUJ_TPS(b)       (*(volatile uint16_t *)((b) + 0x90UL))
+
+/* ------------------------------------------------------------------ */
+/* PWGA19 / PWBA0 / PWSA0 registers (Section 37.2)                     */
+/* ------------------------------------------------------------------ */
+#define PWGA19_CSDR    (*(volatile uint16_t *)(PWGA19_BASE + 0x00UL))
+#define PWGA19_CRDR    (*(volatile uint16_t *)(PWGA19_BASE + 0x04UL))
+#define PWGA19_RDT     (*(volatile uint8_t  *)(PWGA19_BASE + 0x0CUL))
+#define PWGA19_RSF     (*(volatile uint8_t  *)(PWGA19_BASE + 0x10UL))
+#define PWGA19_TCR     (*(volatile uint8_t  *)(PWGA19_BASE + 0x18UL))
+#define PWGA19_CTL     (*(volatile uint8_t  *)(PWGA19_BASE + 0x20UL))
+
+#define PWBA0_BRS0     (*(volatile uint16_t *)(PWBA0_BASE + 0x00UL))
+#define PWBA0_TE       (*(volatile uint16_t *)(PWBA0_BASE + 0x10UL))
+#define PWBA0_TS       (*(volatile uint16_t *)(PWBA0_BASE + 0x14UL))
+#define PWBA0_TT       (*(volatile uint16_t *)(PWBA0_BASE + 0x18UL))
+
+#define PWSA0_CTL      (*(volatile uint8_t  *)(PWSA0_BASE + 0x00UL))
+#define PWGAPRD        (*(volatile uint16_t *)(SLPW_BASE + 0x0CUL))
+#define PWGAPRDSL0     (*(volatile uint32_t *)(SLPW_BASE + 0x10UL))
+#define SLPWGA0        (*(volatile uint32_t *)(SLPW_BASE + 0x00UL))
+
+/* OSTM0 for software PWM on P0_6 (Section 30) */
+#define OSTM0_BASE   0xFFD70000UL
+#define OSTM0_CMP    (*(volatile uint32_t *)(OSTM0_BASE + 0x00UL))
+#define OSTM0_CNT    (*(volatile uint32_t *)(OSTM0_BASE + 0x04UL))
+#define OSTM0_TE     (*(volatile uint8_t  *)(OSTM0_BASE + 0x10UL))
+#define OSTM0_TS     (*(volatile uint8_t  *)(OSTM0_BASE + 0x14UL))
+#define OSTM0_TT     (*(volatile uint8_t  *)(OSTM0_BASE + 0x18UL))
+#define OSTM0_CTL    (*(volatile uint8_t  *)(OSTM0_BASE + 0x20UL))
+
+/* ------------------------------------------------------------------ */
+/* Channel hardware table                                             */
+/* ------------------------------------------------------------------ */
+typedef struct {
+    uint8_t  type;      /* 0 = TAUD0, 2 = TAUJ, 3 = PWGA19, 4 = SW PWM */
+    uint32_t base;      /* TAUJ base address (0 for others)            */
+    uint8_t  master;    /* master channel                              */
+    uint8_t  slave;     /* slave/output channel                        */
+    uint32_t pclk;      /* timer input clock in Hz                     */
+} pwm_hw_t;
+
+static const pwm_hw_t g_hw[PWM_CH_COUNT] = {
+    { 0U, TAUD0_BASE,  4U,  5U, PWM_PCLK_IPERI1_HZ },  /* P10_2  */
+    { 2U, TAUJ1_BASE,  0U,  3U, PWM_PCLK_IPERI1_HZ },  /* P10_0  */
+    { 2U, TAUJ2_BASE,  0U,  3U, PWM_PCLK_ATAUJ_HZ  },  /* P0_2   */
+    { 0U, TAUD0_BASE,  6U,  7U, PWM_PCLK_IPERI1_HZ },  /* P10_3  */
+#if PWM9_USE_P10_4_FOR_P0_6
+    { 0U, TAUD0_BASE,  8U,  9U, PWM_PCLK_IPERI1_HZ },  /* P0_6 net -> P10_4 */
+#else
+    { 4U, 0UL,         0U,  0U, 0UL },                  /* P0_6: software PWM (OSTM0) */
+#endif
+    { 3U, 0UL,         0U,  0U, PWM_PCLK_IPERI2_HZ },  /* P10_14: PWGA19 */
+    { 2U, TAUJ0_BASE,  0U,  3U, PWM_PCLK_ATAUJ_HZ  },  /* P8_5   */
+    { 0U, TAUD0_BASE, 12U, 13U, PWM_PCLK_IPERI1_HZ },  /* P10_6  */
+    { 2U, TAUJ3_BASE,  0U,  2U, PWM_PCLK_IPERI1_HZ }   /* P10_8  */
+};
+
+/* ------------------------------------------------------------------ */
+/* Helpers                                                            */
+/* ------------------------------------------------------------------ */
+static uint16_t duty_counts16(uint16_t period, uint16_t duty_permille)
+{
+    uint32_t high;
+
+    if (duty_permille >= 1000U) {
+        if (period == 0xFFFFU) {
+            return 0xFFFFU;
+        }
+        return (uint16_t)(period + 1U);
+    }
+    high = ((uint32_t)period + 1U) * (uint32_t)duty_permille;
+    high = (high + 500U) / 1000U;
+    if (high > (uint32_t)period + 1U) {
+        high = (uint32_t)period + 1U;
+    }
+    return (uint16_t)high;
+}
+
+static uint32_t duty_counts32(uint32_t period, uint16_t duty_permille)
+{
+    uint64_t high;
+
+    if (duty_permille >= 1000U) {
+        return period + 1U;
+    }
+    high = ((uint64_t)period + 1ULL) * (uint64_t)duty_permille;
+    high = (high + 500ULL) / 1000ULL;
+    if (high > (uint64_t)period + 1ULL) {
+        high = (uint64_t)period + 1ULL;
+    }
+    return (uint32_t)high;
+}
+
+static uint8_t choose_prs16(uint32_t pclk, uint32_t freq, uint16_t *period)
+{
+    uint8_t  prs;
+    uint32_t clk;
+    uint32_t n;
+
+    for (prs = 0U; prs < 16U; prs++) {
+        clk = pclk >> prs;
+        n = (clk + (freq / 2U)) / freq;
+        if ((n >= 2U) && (n <= 65536U)) {
+            *period = (uint16_t)(n - 1U);
+            return prs;
+        }
+    }
+    return 0xFFU;
+}
+
+static uint8_t choose_prs32(uint32_t pclk, uint32_t freq, uint32_t *period)
+{
+    uint8_t  prs;
+    uint32_t clk;
+    uint32_t n;
+
+    for (prs = 0U; prs < 16U; prs++) {
+        clk = pclk >> prs;
+        n = (clk + (freq / 2U)) / freq;
+        if (n >= 2U) {
+            *period = (n - 1U);
+            return prs;
+        }
+    }
+    return 0xFFU;
+}
+
+/* alt: 0 = 1st, 1 = 2nd, 2 = 3rd, 3 = 4th,
+ *      4 = 5th, 5 = 6th, 6 = 7th alternative function.
+ * Note: PFC = bit0, PFCE = bit1, PFCAE = bit2.
+ */
+static void port_alt(uint8_t n, uint8_t m, uint8_t alt)
+{
+    uint16_t bit = (uint16_t)(1U << m);
+
+    PORT_PIBC(n)  &= (uint16_t)~bit;
+    PORT_PBDC(n)  &= (uint16_t)~bit;
+    PORT_PM(n)    |= bit;
+    PORT_PMC(n)   &= (uint16_t)~bit;
+
+    if ((n == 0U) || (n == 10U)) {
+        PORT_PIPC(n) &= (uint16_t)~bit;
+    }
+
+    if ((alt & 1U) != 0U) { PORT_PFC(n)   |= bit; } else { PORT_PFC(n)   &= (uint16_t)~bit; }
+    if ((alt & 2U) != 0U) { PORT_PFCE(n)  |= bit; } else { PORT_PFCE(n)  &= (uint16_t)~bit; }
+    if ((alt & 4U) != 0U) { PORT_PFCAE(n) |= bit; } else { PORT_PFCAE(n) &= (uint16_t)~bit; }
+
+    PORT_PM(n)  &= (uint16_t)~bit;
+    PORT_PMC(n) |= bit;
+}
+
+/* ------------------------------------------------------------------ */
+/* TAUD0 PWM: master = interval timer, slave = one-count              */
+/* ------------------------------------------------------------------ */
+static int set_taud(uint8_t master, uint8_t slave, uint32_t pclk,
+                    uint32_t freq, uint16_t duty)
+{
+    uint16_t period;
+    uint8_t  prs;
+    uint16_t mbit;
+    uint16_t sbit;
+    uint16_t both;
+
+    prs = choose_prs16(pclk, freq, &period);
+    if (prs == 0xFFU) {
+        return -1;
+    }
+
+    mbit = (uint16_t)(1U << master);
+    sbit = (uint16_t)(1U << slave);
+    both = (uint16_t)(mbit | sbit);
+
+    TAUD_TT = both;
+    while ((TAUD_TE & both) != 0U) {
+        /* wait until the channels are stopped */
+    }
+
+    /* CK0 = PCLK / 2^prs. All TAUD0 channels share PRS0. */
+    TAUD_TPS = (uint16_t)((TAUD_TPS & (uint16_t)~0x000FU) | (uint16_t)prs);
+
+    /* Master channel: interval timer mode, no output. */
+    TAUD_CMOR(master) = (uint16_t)((1U << 11) | 0x0001U);
+    TAUD_CMUR(master) = 0x0000U;
+    TAUD_CDR(master)  = period;
+    TAUD_TOE &= (uint16_t)~mbit;
+    TAUD_TOM &= (uint16_t)~mbit;
+    TAUD_TOC &= (uint16_t)~mbit;
+    TAUD_TOL &= (uint16_t)~mbit;
+    TAUD_TDE &= (uint16_t)~mbit;
+    TAUD_TDM &= (uint16_t)~mbit;
+    TAUD_TDL &= (uint16_t)~mbit;
+    TAUD_TRE &= (uint16_t)~mbit;
+    TAUD_TRO &= (uint16_t)~mbit;
+    TAUD_TRC &= (uint16_t)~mbit;
+    TAUD_TME &= (uint16_t)~mbit;
+
+    /* Slave channel: one-count mode, start trigger from master. */
+    TAUD_CMOR(slave) = (uint16_t)((4U << 8) | (4U << 1) | 0x0001U);
+    TAUD_CMUR(slave) = 0x0000U;
+    TAUD_CDR(slave)  = duty_counts16(period, duty);
+
+    /* Simultaneous rewrite: master and slave must use the same settings. */
+    TAUD_RDE |= both;
+    TAUD_RDS &= (uint16_t)~both;
+    TAUD_RDM &= (uint16_t)~both;
+    TAUD_RDC &= (uint16_t)~both;
+
+    /* Slave output: synchronous channel output mode 1, positive logic. */
+    TAUD_TOE |= sbit;
+    TAUD_TOM |= sbit;
+    TAUD_TOC &= (uint16_t)~sbit;
+    TAUD_TOL &= (uint16_t)~sbit;
+    TAUD_TDE &= (uint16_t)~sbit;
+    TAUD_TDM &= (uint16_t)~sbit;
+    TAUD_TDL &= (uint16_t)~sbit;
+    TAUD_TRE &= (uint16_t)~sbit;
+    TAUD_TRO &= (uint16_t)~sbit;
+    TAUD_TRC &= (uint16_t)~sbit;
+    TAUD_TME &= (uint16_t)~sbit;
+
+    TAUD_TS = both;
+    return 0;
+}
+
+#if 0 /* TAUB0 is not available on the 64-pin package */
+/* ------------------------------------------------------------------ */
+/* TAUB0 PWM: master = interval timer, slave = one-count              */
+/* ------------------------------------------------------------------ */
+static int set_taub(uint8_t master, uint8_t slave, uint32_t pclk,
+                    uint32_t freq, uint16_t duty)
+{
+    uint16_t period;
+    uint8_t  prs;
+    uint16_t mbit;
+    uint16_t sbit;
+    uint16_t both;
+
+    prs = choose_prs16(pclk, freq, &period);
+    if (prs == 0xFFU) {
+        return -1;
+    }
+
+    mbit = (uint16_t)(1U << master);
+    sbit = (uint16_t)(1U << slave);
+    both = (uint16_t)(mbit | sbit);
+
+    TAUB_TT = both;
+    while ((TAUB_TE & both) != 0U) {
+        /* wait until the channels are stopped */
+    }
+
+    TAUB_TPS = (uint16_t)((TAUB_TPS & (uint16_t)~0x000FU) | (uint16_t)prs);
+
+    TAUB_CMOR(master) = (uint16_t)((1U << 11) | 0x0001U);
+    TAUB_CMUR(master) = 0x0000U;
+    TAUB_CDR(master)  = period;
+    TAUB_TOE &= (uint16_t)~mbit;
+    TAUB_TOM &= (uint16_t)~mbit;
+    TAUB_TOC &= (uint16_t)~mbit;
+    TAUB_TOL &= (uint16_t)~mbit;
+    TAUB_TDE &= (uint16_t)~mbit;
+    TAUB_TDL &= (uint16_t)~mbit;
+
+    TAUB_CMOR(slave) = (uint16_t)((4U << 8) | (4U << 1) | 0x0001U);
+    TAUB_CMUR(slave) = 0x0000U;
+    TAUB_CDR(slave)  = duty_counts16(period, duty);
+
+    TAUB_RDE |= both;
+    TAUB_RDS &= (uint16_t)~both;
+    TAUB_RDM &= (uint16_t)~both;
+    TAUB_RDC &= (uint16_t)~both;
+
+    TAUB_TOE |= sbit;
+    TAUB_TOM |= sbit;
+    TAUB_TOC &= (uint16_t)~sbit;
+    TAUB_TOL &= (uint16_t)~sbit;
+    TAUB_TDE &= (uint16_t)~sbit;
+    TAUB_TDL &= (uint16_t)~sbit;
+
+    TAUB_TS = both;
+    return 0;
+}
+
+#endif /* TAUB0 not available on 64-pin */
+
+/* ------------------------------------------------------------------ */
+/* TAUJ PWM: 32-bit master/slave                                      */
+/* ------------------------------------------------------------------ */
+static int set_tauj(uint32_t base, uint8_t master, uint8_t slave,
+                    uint32_t pclk, uint32_t freq, uint16_t duty)
+{
+    uint32_t period;
+    uint8_t  prs;
+    uint16_t mbit;
+    uint16_t sbit;
+    uint16_t both;
+
+    prs = choose_prs32(pclk, freq, &period);
+    if (prs == 0xFFU) {
+        return -1;
+    }
+
+    mbit = (uint16_t)(1U << master);
+    sbit = (uint16_t)(1U << slave);
+    both = (uint16_t)(mbit | sbit);
+
+    TAUJ_TT(base) = both;
+    while ((TAUJ_TE(base) & both) != 0U) {
+        /* wait until the channels are stopped */
+    }
+
+    TAUJ_TPS(base) = (uint16_t)((TAUJ_TPS(base) & (uint16_t)~0x000FU) | (uint16_t)prs);
+
+    TAUJ_CMOR(base, master) = (uint16_t)((1U << 11) | 0x0001U);
+    TAUJ_CMUR(base, master) = 0x0000U;
+    TAUJ_CDR(base, master)  = period;
+    TAUJ_TOE(base) &= (uint16_t)~mbit;
+    TAUJ_TOM(base) &= (uint16_t)~mbit;
+    TAUJ_TOC(base) &= (uint16_t)~mbit;
+    TAUJ_TOL(base) &= (uint16_t)~mbit;
+
+    TAUJ_CMOR(base, slave) = (uint16_t)((4U << 8) | (4U << 1) | 0x0001U);
+    TAUJ_CMUR(base, slave) = 0x0000U;
+    TAUJ_CDR(base, slave)  = duty_counts32(period, duty);
+
+    TAUJ_RDE(base) |= both;
+    TAUJ_RDM(base) &= (uint16_t)~both;
+
+    TAUJ_TOE(base) |= sbit;
+    TAUJ_TOM(base) |= sbit;
+    TAUJ_TOC(base) &= (uint16_t)~sbit;
+    TAUJ_TOL(base) &= (uint16_t)~sbit;
+
+    TAUJ_TS(base) = both;
+    return 0;
+}
+
+/* ------------------------------------------------------------------ */
+/* PWGA19 PWM                                                         */
+/* ------------------------------------------------------------------ */
+static uint16_t pwga_duty_counts(uint16_t period, uint16_t duty_permille)
+{
+    uint32_t high;
+
+    if (duty_permille == 0U) {
+        return 0U;
+    }
+    if (duty_permille >= 1000U) {
+        return 0x1000U;   /* PWGA19_CRDR bit12 = 1 -> fixed high */
+    }
+    high = ((uint32_t)period + 1U) * (uint32_t)duty_permille;
+    high = (high + 500U) / 1000U;
+    if (high > (uint32_t)period) {
+        high = (uint32_t)period;
+    }
+    return (uint16_t)high;
+}
+
+static int set_pwga(uint32_t pclk, uint32_t freq, uint16_t duty)
+{
+    uint32_t brs;
+    uint32_t n;
+    uint32_t pwmclk;
+    uint16_t period;
+    uint16_t crdr;
+
+    brs = 0U;
+    n = 0U;
+    for (brs = 0U; brs < 2048U; brs++) {
+        pwmclk = (brs == 0U) ? pclk : (pclk / (2U * brs));
+        n = (pwmclk + (freq / 2U)) / freq;
+        if ((n >= 1U) && (n <= 4096U)) {
+            break;
+        }
+    }
+    if (brs >= 2048U) {
+        return -1;
+    }
+
+    period = (uint16_t)(n - 1U);
+    crdr = pwga_duty_counts(period, duty);
+
+    /* Stop PWGA19 and PWMCLK0 before changing the period. */
+    SLPWGA0 &= ~(1UL << 19);
+    PWBA0_TT = 0x0001U;
+    while ((PWBA0_TE & 0x0001U) != 0U) {
+        /* wait until PWMCLK0 is stopped */
+    }
+    PWSA0_CTL = 0x00U;
+
+    /* Start PWMCLK0. BRS0 = 0 -> PWMCLK0 = PCLK. */
+    PWBA0_BRS0 = (uint16_t)brs;
+    PWSA0_CTL = 0x01U;
+    PWBA0_TS = 0x0001U;
+
+    PWGA19_CTL = 0x00U;                  /* CKS=00: PWMCLK0 */
+    PWGAPRDSL0 |= (1UL << 19);            /* PWGA19 uses PWGAPRD */
+    PWGAPRD = period;
+    PWGA19_CSDR = 0x0000U;
+    PWGA19_CRDR = crdr;
+    PWGA19_TCR = 0x01U;                  /* TOE = 1 */
+    SLPWGA0 |= (1UL << 19);               /* start PWGA19 */
+    return 0;
+}
+
+static void pwga_set_duty(uint16_t duty_permille)
+{
+    uint16_t period = PWGAPRD;
+    uint16_t crdr = pwga_duty_counts(period, duty_permille);
+
+    PWGA19_CRDR = crdr;
+    PWGA19_RDT = 0x01U;                  /* request simultaneous rewrite */
+    while ((PWGA19_RSF & 0x01U) != 0U) {
+        /* wait until the compare buffer is updated */
+    }
+}
+
+/* ------------------------------------------------------------------ */
+/* Software PWM on P0_6 (OSTM0 free-run compare)                       */
+/* ------------------------------------------------------------------ */
+static volatile uint32_t sw_period_counts = 0UL;
+static volatile uint32_t sw_high_counts = 0UL;
+static volatile uint32_t sw_low_counts = 0UL;
+static volatile uint32_t sw_freq_hz = 0UL;
+static volatile uint16_t sw_duty_permille = 0U;
+static volatile uint8_t  sw_level = 0U;
+
+static void p0_6_gpio_init(void)
+{
+    uint16_t bit = (uint16_t)(1U << 6);
+
+    PORT_PIBC(0)  &= (uint16_t)~bit;
+    PORT_PBDC(0)  &= (uint16_t)~bit;
+    PORT_PM(0)    &= (uint16_t)~bit;   /* output */
+    PORT_PMC(0)   &= (uint16_t)~bit;   /* GPIO */
+    PORT_PIPC(0)  &= (uint16_t)~bit;   /* software I/O */
+    PORT_PFC(0)   &= (uint16_t)~bit;
+    PORT_PFCE(0)  &= (uint16_t)~bit;
+    PORT_PFCAE(0) &= (uint16_t)~bit;
+    P0 &= (uint16_t)~bit;              /* start low */
+}
+
+static void sw_pwm_stop(void)
+{
+    OSTM0_TT = 0x01U;
+    while ((OSTM0_TE & 0x01U) != 0U) {
+        /* wait until OSTM0 is stopped */
+    }
+}
+
+static int sw_pwm_apply(uint32_t freq, uint16_t duty)
+{
+    uint32_t n;
+    uint32_t high;
+    uint32_t low;
+
+    if ((freq < 200000UL) || (freq > 400000UL)) {
+        return -1;
+    }
+    if (duty > 1000U) {
+        duty = 1000U;
+    }
+
+    n = (PWM_SW_PCLK_HZ + (freq / 2U)) / freq;
+    if (n < 4U) {
+        return -1;
+    }
+
+    sw_freq_hz = freq;
+    sw_period_counts = n;
+    sw_duty_permille = duty;
+
+    if (duty == 0U) {
+        sw_pwm_stop();
+        sw_level = 0U;
+        P0 &= (uint16_t)~(1U << 6);
+        sw_high_counts = 0U;
+        sw_low_counts = n;
+        return 0;
+    }
+    if (duty >= 1000U) {
+        sw_pwm_stop();
+        sw_level = 1U;
+        P0 |= (uint16_t)(1U << 6);
+        sw_high_counts = n;
+        sw_low_counts = 0U;
+        return 0;
+    }
+
+    high = ((uint32_t)n * (uint32_t)duty + 500U) / 1000U;
+    if (high < 1U) {
+        high = 1U;
+    }
+    if (high >= n) {
+        high = n - 1U;
+    }
+    low = n - high;
+    sw_high_counts = high;
+    sw_low_counts = low;
+
+    sw_pwm_stop();
+    P0 |= (uint16_t)(1U << 6);   /* start high */
+    sw_level = 1U;
+    OSTM0_CTL = 0x02U;           /* free-run compare, no start interrupt */
+    OSTM0_CMP = high;            /* first edge after high counts */
+    OSTM0_TS = 0x01U;
+    return 0;
+}
+
+static int sw_pwm_set_duty(uint16_t duty)
+{
+    if (sw_freq_hz == 0UL) {
+        return -1;
+    }
+    return sw_pwm_apply(sw_freq_hz, duty);
+}
+
+void pwm_sw_isr(void)
+{
+    uint32_t interval;
+    uint32_t next;
+
+    if (sw_level != 0U) {
+        sw_level = 0U;
+        P0 &= (uint16_t)~(1U << 6);
+        interval = sw_low_counts;
+    } else {
+        sw_level = 1U;
+        P0 |= (uint16_t)(1U << 6);
+        interval = sw_high_counts;
+    }
+
+    if (interval == 0UL) {
+        sw_pwm_stop();
+        return;
+    }
+
+    next = OSTM0_CMP + interval;
+    if ((int32_t)(next - OSTM0_CNT) <= 0) {
+        next = OSTM0_CNT + interval;   /* resync after a long ISR delay */
+    }
+    OSTM0_CMP = next;
+}
+
+/* ------------------------------------------------------------------ */
+/* Public API                                                         */
+/* ------------------------------------------------------------------ */
+void pwm9_init(void)
+{
+    uint8_t i;
+
+    /* If the Port Protection Cluster is enabled, unlock PPCMD here. */
+    /* P10_2  : TAUD0O5,   1st alternative */
+    port_alt(10U, 2U, 0U);
+    /* P10_0  : TAUJ1O3,   6th alternative */
+    port_alt(10U, 0U, 5U);
+    /* P0_2   : TAUJ2O3,   6th alternative */
+    port_alt(0U, 2U, 5U);
+    /* P10_3  : TAUD0O7,   1st alternative */
+    port_alt(10U, 3U, 0U);
+#if PWM9_USE_P10_4_FOR_P0_6
+    /* P0_6 net reworked to P10_4: TAUD0O9, 1st alternative */
+    port_alt(10U, 4U, 0U);
+#else
+    /* P0_6: GPIO + OSTM0 software PWM */
+    p0_6_gpio_init();
+#endif
+    /* P10_14 : PWGA19O,   1st alternative */
+    port_alt(10U, 14U, 0U);
+    /* P8_5   : TAUJ0O3,   1st alternative */
+    port_alt(8U, 5U, 0U);
+    /* P10_6  : TAUD0O13,  1st alternative */
+    port_alt(10U, 6U, 0U);
+    /* P10_8  : TAUJ3O2,   7th alternative */
+    port_alt(10U, 8U, 6U);
+
+    /* Default: 250 kHz, 50% duty. */
+    for (i = 0U; i < (uint8_t)PWM_CH_COUNT; i++) {
+        (void)pwm9_set_freq_duty((pwm_ch_t)i, 250000UL, 500U);
+    }
+}
+
+int pwm9_set_freq_duty(pwm_ch_t ch, uint32_t freq_hz, uint16_t duty_permille)
+{
+    const pwm_hw_t *h;
+
+    if (ch >= PWM_CH_COUNT) {
+        return -1;
+    }
+    if ((freq_hz < 200000UL) || (freq_hz > 400000UL)) {
+        return -1;
+    }
+    if (duty_permille > 1000U) {
+        duty_permille = 1000U;
+    }
+
+    h = &g_hw[ch];
+    switch (h->type) {
+    case 0U:
+        return set_taud(h->master, h->slave, h->pclk, freq_hz, duty_permille);
+    case 1U:
+        return -1;   /* TAUB0 is not available on the 64-pin package */
+    case 2U:
+        return set_tauj(h->base, h->master, h->slave, h->pclk, freq_hz, duty_permille);
+    case 3U:
+        return set_pwga(h->pclk, freq_hz, duty_permille);
+    case 4U:
+        return sw_pwm_apply(freq_hz, duty_permille);
+    default:
+        return -1;
+    }
+}
+
+int pwm9_set_duty(pwm_ch_t ch, uint16_t duty_permille)
+{
+    const pwm_hw_t *h;
+
+    if (ch >= PWM_CH_COUNT) {
+        return -1;
+    }
+    if (duty_permille > 1000U) {
+        duty_permille = 1000U;
+    }
+
+    h = &g_hw[ch];
+    switch (h->type) {
+    case 0U:
+        TAUD_CDR(h->slave) = duty_counts16(TAUD_CDR(h->master), duty_permille);
+        return 0;
+    case 1U:
+        return -1;   /* TAUB0 is not available on the 64-pin package */
+    case 2U:
+        TAUJ_CDR(h->base, h->slave) =
+            duty_counts32(TAUJ_CDR(h->base, h->master), duty_permille);
+        return 0;
+    case 3U:
+        pwga_set_duty(duty_permille);
+        return 0;
+    case 4U:
+        return sw_pwm_set_duty(duty_permille);
+    default:
+        return -1;
+    }
+}
+
+uint32_t pwm9_get_actual_freq(pwm_ch_t ch)
+{
+    const pwm_hw_t *h;
+    uint32_t clk;
+    uint32_t period;
+    uint32_t brs;
+
+    if (ch >= PWM_CH_COUNT) {
+        return 0UL;
+    }
+
+    h = &g_hw[ch];
+    switch (h->type) {
+    case 0U:
+        clk = h->pclk >> (TAUD_TPS & 0x000FU);
+        period = (uint32_t)TAUD_CDR(h->master) + 1UL;
+        break;
+    case 1U:
+        return 0UL;  /* TAUB0 is not available on the 64-pin package */
+    case 2U:
+        clk = h->pclk >> (TAUJ_TPS(h->base) & 0x000FU);
+        period = TAUJ_CDR(h->base, h->master) + 1UL;
+        break;
+    case 3U:
+        brs = (uint32_t)PWBA0_BRS0;
+        clk = (brs == 0UL) ? h->pclk : (h->pclk / (2UL * brs));
+        period = (uint32_t)PWGAPRD + 1UL;
+        break;
+    case 4U:
+        return (sw_period_counts == 0UL) ? 0UL : (PWM_SW_PCLK_HZ / sw_period_counts);
+    default:
+        return 0UL;
+    }
+
+    if (period == 0UL) {
+        return 0UL;
+    }
+    return clk / period;
+}
+
+uint16_t pwm9_get_actual_duty(pwm_ch_t ch)
+{
+    const pwm_hw_t *h;
+    uint32_t period;
+    uint32_t high;
+
+    if (ch >= PWM_CH_COUNT) {
+        return 0U;
+    }
+
+    h = &g_hw[ch];
+    switch (h->type) {
+    case 0U:
+        period = (uint32_t)TAUD_CDR(h->master) + 1UL;
+        high = (uint32_t)TAUD_CDR(h->slave);
+        break;
+    case 1U:
+        return 0U;   /* TAUB0 is not available on the 64-pin package */
+    case 2U:
+        period = TAUJ_CDR(h->base, h->master) + 1UL;
+        high = TAUJ_CDR(h->base, h->slave);
+        break;
+    case 3U:
+        if ((PWGA19_CRDR & 0x1000U) != 0U) {
+            return 1000U;
+        }
+        period = (uint32_t)PWGAPRD + 1UL;
+        high = (uint32_t)PWGA19_CRDR - (uint32_t)PWGA19_CSDR;
+        break;
+    case 4U:
+        return sw_duty_permille;
+    default:
+        return 0U;
+    }
+
+    if (period == 0UL) {
+        return 0U;
+    }
+    if (high > period) {
+        high = period;
+    }
+    return (uint16_t)((high * 1000UL + (period / 2UL)) / period);
+}
+
+</script>
+          </div>
+        </div>
+        <div class="tab-panel" id="tab-main64">
+          <div class="code-card">
+            <div class="code-head"><span class="file">main_pwm_example_64.c</span><button class="copy">复制</button></div>
+            <pre><code></code></pre>
+            <script type="text/plain" class="code-src">
+/* main_pwm_example_64.c - R7F701690 (RH850/F1KM-S1 64-pin) example
+ *
+ * Call pwm9_init() after the clock tree, module clocks and ports are ready.
+ *
+ * P0_6 uses software PWM on OSTM0 (free-run compare).
+ *   - Route the INTOSTM0 vector to pwm_sw_isr() in CS+.
+ *   - If the P0_6 net is reworked to P10_4, set
+ *     PWM9_USE_P10_4_FOR_P0_6 to 1 and use hardware TAUD0O9 instead.
+ *
+ * P10_14 uses PWGA19O (not TAUB0O7) on the 64-pin package.
+ */
+#include "pwm9_64.h"
+
+void main(void)
+{
+    /* TODO: enable module clocks for TAUD0, TAUJ0..3,
+     *       PWBA0, PWGA19, PWSA0 and OSTM0.
+     */
+
+    pwm9_init();   /* 250 kHz, 50% on all nine channels */
+
+    /* P10_6: 350 kHz, 25% (TAUD0 CH12/CH13) */
+    (void)pwm9_set_freq_duty(PWM_P10_6, 350000UL, 250U);
+
+    /* P10_14: keep frequency, change duty to 75% (PWGA19) */
+    (void)pwm9_set_duty(PWM_P10_14, 750U);
+
+    /* P10_0: 400 kHz, 10% (TAUJ1 CH0/CH3) */
+    (void)pwm9_set_freq_duty(PWM_P10_0, 400000UL, 100U);
+
+    /* P0_6: software PWM on OSTM0 (300 kHz, 50%) */
+    (void)pwm9_set_freq_duty(PWM_P0_6, 300000UL, 500U);
+
+    for (;;) {
+        /* application loop */
+    }
+}
+
+</script>
+          </div>
+        </div>
+      </div>
+
+      <div class="callout">
+        <span class="tag">使用说明</span>
+        <code>pwm9_init()</code> 默认把 8 路硬件 PWM + P0_6 软件 PWM 都设为 250 kHz / 50%。P0_6 的 ISR 是 <code>pwm_sw_isr()</code>，必须在 CS+ 里接到 <code>INTOSTM0</code> 向量。改板到 P10_4 后，把 <code>PWM9_USE_P10_4_FOR_P0_6</code> 改成 1，<code>PWM_P0_6</code> 就映射到 P10_4（TAUD0 CH8/CH9）。
+      </div>
+    </section>
+
+    <section id="csplus">
+      <h2><span class="num">07</span> CS+ 集成</h2>
+      <ol class="steps">
+        <li><strong>选择正确器件</strong><br>CS+ 工程选 R7F701690（RH850/F1KM-S1，64-pin LQFP），确认 CCRH850 编译器。</li>
+        <li><strong>加入 64-pin 文件</strong><br>加入 <span class="mono">pwm9_64.c</span>、<span class="mono">pwm9_64.h</span>；把 <span class="mono">main_pwm_example_64.c</span> 的内容合并到你的 <span class="mono">main.c</span>。</li>
+        <li><strong>使能模块时钟</strong><br>TAUD0、TAUJ0–3、PWBA0、PWGA19、PWSA0、OSTM0。PWGA19 是 PWM-Diag 通道 19，不是 PWGA35；64-pin 只有 PWGA0–23。</li>
+        <li><strong>核对 PCLK 宏</strong><br><span class="mono">PWM_PCLK_IPERI1_HZ</span>、<span class="mono">PWM_PCLK_IPERI2_HZ</span>、<span class="mono">PWM_PCLK_ATAUJ_HZ</span>、<span class="mono">PWM_SW_PCLK_HZ</span> 改成实际时钟树频率（默认 80/40/40/60 MHz）。</li>
+        <li><strong>P0_6 软件 PWM / INTOSTM0</strong><br>默认用 OSTM0 软件 PWM。在 CS+ / Smart Configurator 使能 OSTM0 和 INTOSTM0 中断，把 INTOSTM0 向量指向 <span class="mono">pwm_sw_isr()</span>，并给较高优先级。若直接把 <span class="mono">pwm_sw_isr</span> 注册为向量函数，按工程 INTC2 写法清 INTOSTM0 标志；用 Smart Configurator 的 wrapper 调用它则不需要额外处理。若改板到 P10_4，把 <span class="mono">PWM9_USE_P10_4_FOR_P0_6</span> 设为 1。</li>
+        <li><strong>端口保护</strong><br>如果启用了 Port Protection，先按 Section 5 解锁 <span class="mono">PPCMD</span>，否则 PFC/PMC 写不进去。</li>
+        <li><strong>测量</strong><br>先测 P10_6、P10_14、P10_2，再测 P0_6 软件 PWM。P0_6 没有波形时优先检查 OSTM0 模块时钟和 INTOSTM0 向量。</li>
+      </ol>
+
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>现象</th><th>原因</th><th>处理</th></tr></thead>
+          <tbody>
+            <tr><td>P0_6 没有波形</td><td>OSTM0 没使能，或 INTOSTM0 没指向 pwm_sw_isr()</td><td>使能 OSTM0 模块时钟；注册 INTOSTM0 向量；检查 pwm_sw_isr 是否被调用</td></tr>
+            <tr><td>P0_6 抖动大</td><td>ISR 延迟 / 其他中断阻塞</td><td>提高 INTOSTM0 优先级；缩短 ISR；避免长时间关中断</td></tr>
+            <tr><td>P10_14 没有波形</td><td>还按 TAUB0O7 配置</td><td>改为 PWGA19O：PFC alt=0；PWGA19_TCR.TOE=1；SLPWGA0 bit19=1</td></tr>
+            <tr><td>P10_14 频率不对</td><td>PWGAPRDSL0/SLPWGA0 用错 bit</td><td>PWGA19 用 SLPWGA0 bit19、PWGAPRDSL0 bit19；PWGAPRD 共享</td></tr>
+            <tr><td>P10_6 没有波形</td><td>TAUD0 CH13 没使能，或 PFC 没设</td><td>CH12 主 / CH13 从；P10_6 PFC=0/0/0、PM=0、PMC=1</td></tr>
+            <tr><td>频率偏大/偏小</td><td>PCLK 宏或 PRS 不对</td><td>核对 64-pin 实际时钟；200–400 kHz 下 PRS=0</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="refs">
+      <h2><span class="num">08</span> 参考资料</h2>
+      <div class="card">
+        <ul>
+          <li>R7F701690 属于 <strong>RH850/F1KM-S1，64-pin LQFP</strong>；手册 Table 1C.2（PDF p122）列出 64-pin 型号。</li>
+          <li>64-pin 引脚复用：Section 2C.10，Table 2C.41（P0）、2C.43（P8）、2C.47（P10）的 <strong>64 Pins</strong> 列。</li>
+          <li>P10_14 64-pin：只有 PWGA19O（1st）；P0_6 64-pin：INTP2/DPIN10/SELDP2，无硬件 PWM。</li>
+          <li>软件 PWM：OSTM 章节 Section 30；OSTM0 中断号 84（INTOSTM0）；<span class="mono">OSTM0_CTL=0x02</span> 自由运行比较模式。</li>
+          <li>TAUJ PWM：Section 33.13.1；TAUD PWM：Section 32.15.1；PWGA：Section 37.1–37.3。</li>
+          <li>时钟上限：Section 47A.3.1；PWGA 数量：Table 37.4（64-pin = 24 路，PWGA0–23）。</li>
+          <li>手册：Renesas R01UH0684EJ0130（因版权/体积未随仓库分发）</li>
+          <li>官方页：<a href="https://www.renesas.com/en/document/mah/rh850f1km-rh850f1kh-users-manual-hardware" target="_blank" rel="noopener">renesas.com · R01UH0684</a></li>
+        </ul>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<footer class="footer">
+  R7F701690 · RH850/F1KM-S1 · 64-pin LQFP · 8 hardware PWM + P0_6 software PWM (OSTM0) · 200–400 kHz · CS+ / CCRH850
+</footer>
+
+<script>
+function escHtml(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function highlight(src){
+  var tokens=[];var code=src;
+  code=code.replace(/\/\*[\s\S]*?\*\//g,function(m){tokens.push('<span class="cm">'+escHtml(m)+'</span>');return '@@T@@x'+(tokens.length-1)+'@@T@@';});
+  code=code.replace(/\/\/[^\n]*/g,function(m){tokens.push('<span class="cm">'+escHtml(m)+'</span>');return '@@T@@x'+(tokens.length-1)+'@@T@@';});
+  code=code.replace(/"([^"\\]|\\.)*"/g,function(m){tokens.push('<span class="str">'+escHtml(m)+'</span>');return '@@T@@x'+(tokens.length-1)+'@@T@@';});
+  code=escHtml(code);
+  code=code.replace(/\b(uint8_t|uint16_t|uint32_t|uint64_t|volatile|static|void|const|if|else|for|while|return|typedef|struct|enum|switch|case|default|break|continue)\b/g,'<span class="kw">$1</span>');
+  code=code.replace(/\b(0x[0-9A-Fa-f]+|\d+[uUlL]*)\b/g,'<span class="num">$1</span>');
+  code=code.replace(/@@T@@x(\d+)@@T@@/g,function(_,i){return tokens[+i];});
+  return code;
+}
+document.querySelectorAll('.code-card').forEach(function(card){
+  var srcEl=card.querySelector('script.code-src');var codeEl=card.querySelector('code');
+  if(!srcEl||!codeEl)return;
+  var src=srcEl.textContent.replace(/^\n+|\n+$/g,'');
+  card.dataset.raw=src;codeEl.innerHTML=highlight(src);
+});
+document.querySelectorAll('.copy').forEach(function(btn){
+  btn.addEventListener('click',function(){
+    var card=btn.closest('.code-card');var text=card.dataset.raw||'';
+    if(navigator.clipboard&&navigator.clipboard.writeText){
+      navigator.clipboard.writeText(text).then(function(){btn.textContent='已复制';setTimeout(function(){btn.textContent='复制';},1200);});
+    }else{
+      var ta=document.createElement('textarea');ta.value=text;document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);
+      btn.textContent='已复制';setTimeout(function(){btn.textContent='复制';},1200);
+    }
+  });
+});
+document.querySelectorAll('.tab-btn').forEach(function(btn){
+  btn.addEventListener('click',function(){
+    var group=btn.closest('.code-tabs');
+    group.querySelectorAll('.tab-btn').forEach(function(b){b.classList.remove('active');});
+    group.querySelectorAll('.tab-panel').forEach(function(p){p.classList.remove('active');});
+    btn.classList.add('active');group.querySelector('#'+btn.dataset.tab).classList.add('active');
+  });
+});
+var links=[].slice.call(document.querySelectorAll('.sidebar a[href^="#"]'));
+var sections=links.map(function(a){return document.querySelector(a.getAttribute('href'));}).filter(Boolean);
+if('IntersectionObserver' in window){
+  var obs=new IntersectionObserver(function(entries){
+    entries.forEach(function(e){if(e.isIntersecting){links.forEach(function(a){a.classList.toggle('active',a.getAttribute('href')==='#'+e.target.id);});}});
+  },{rootMargin:'-18% 0px -72% 0px'});
+  sections.forEach(function(s){obs.observe(s);});
+}
+var CH=[
+  {pin:'P10_2', timer:'TAUD0 CH4→CH5', clk:'iperi1', type:'TAUD'},
+  {pin:'P10_0', timer:'TAUJ1 CH0→CH3', clk:'iperi1', type:'TAUJ'},
+  {pin:'P0_2', timer:'TAUJ2 CH0→CH3', clk:'atauj', type:'TAUJ'},
+  {pin:'P10_3', timer:'TAUD0 CH6→CH7', clk:'iperi1', type:'TAUD'},
+  {pin:'P10_14', timer:'PWGA19', clk:'iperi2', type:'PWGA'},
+  {pin:'P8_5', timer:'TAUJ0 CH0→CH3', clk:'atauj', type:'TAUJ'},
+  {pin:'P10_6', timer:'TAUD0 CH12→CH13', clk:'iperi1', type:'TAUD'},
+  {pin:'P10_8', timer:'TAUJ3 CH0→CH2', clk:'iperi1', type:'TAUJ'},
+  {pin:'P0_6', timer:'软件 PWM (OSTM0)', clk:'ostm', type:'SW'},
+  {pin:'P10_4', timer:'TAUD0 CH8→CH9（可选改板）', clk:'iperi1', type:'TAUD'}
+];
+function calc(){
+  var p1=parseFloat(document.getElementById('pclk1').value)||80;
+  var p2=parseFloat(document.getElementById('pclk2').value)||40;
+  var pa=parseFloat(document.getElementById('pclkA').value)||40;
+  var ps=parseFloat(document.getElementById('pclkS').value)||60;
+  var fk=parseFloat(document.getElementById('freq').value)||300;
+  var duty=parseFloat(document.getElementById('duty').value)||50;
+  var f=fk*1000;
+  var pclk={iperi1:p1*1e6,iperi2:p2*1e6,atauj:pa*1e6,ostm:ps*1e6};
+  document.getElementById('freqVal').textContent=fk.toFixed(0)+' kHz';
+  document.getElementById('dutyVal').textContent=duty.toFixed(1)+' %';
+  var rows='';
+  CH.forEach(function(ch){
+    if(ch.type==='SW'){
+      var clk=pclk[ch.clk];var n=Math.round(clk/f);if(n<1)n=1;
+      var high=Math.round(n*duty/100);
+      if(duty>0&&high<1)high=1;
+      if(duty<100&&high>=n)high=n-1;
+      var low=n-high;
+      var actual=clk/n;var err=(actual-f)/f*100;var dstep=100/n;var fstep=clk/(n*(n+1));
+      var cls=dstep>=0.9?'bad':(dstep>=0.6?'warn':'ok');
+      var errCls=Math.abs(err)<0.1?'ok':(Math.abs(err)<0.3?'warn':'bad');
+      rows+='<tr class="'+cls+'"><td class="pin">'+ch.pin+'</td><td>'+ch.timer+'</td><td class="num">'+(clk/1e6).toFixed(0)+' MHz</td><td class="num">'+n+'</td><td class="num">'+n+'</td><td class="num">'+high+' / '+low+'</td><td class="num">'+(actual/1000).toFixed(2)+' kHz</td><td class="num '+errCls+'">'+(err>=0?'+':'')+err.toFixed(3)+'%</td><td class="num">'+dstep.toFixed(2)+'%</td><td class="num">'+(fstep/1000).toFixed(2)+' kHz</td></tr>';
+      return;
+    }
+    var clk=pclk[ch.clk];var n=Math.round(clk/f);if(n<1)n=1;
+    var cdrM=n-1;var cdrS=Math.round(n*duty/100);
+    if(duty>=100)cdrS=n;
+    if(ch.type==='PWGA'&&duty>=100)cdrS='0x1000';
+    var actual=clk/n;var err=(actual-f)/f*100;var dstep=100/n;var fstep=clk/(n*(n+1));
+    var cls=dstep>=0.9?'bad':(dstep>=0.6?'warn':'ok');
+    if(ch.pin==='P10_4')cls+=' optional';
+    var errCls=Math.abs(err)<0.1?'ok':(Math.abs(err)<0.3?'warn':'bad');
+    rows+='<tr class="'+cls+'"><td class="pin">'+ch.pin+'</td><td>'+ch.timer+'</td><td class="num">'+(clk/1e6).toFixed(0)+' MHz</td><td class="num">'+n+'</td><td class="num">'+cdrM+'</td><td class="num">'+cdrS+'</td><td class="num">'+(actual/1000).toFixed(2)+' kHz</td><td class="num '+errCls+'">'+(err>=0?'+':'')+err.toFixed(3)+'%</td><td class="num">'+dstep.toFixed(2)+'%</td><td class="num">'+(fstep/1000).toFixed(2)+' kHz</td></tr>';
+  });
+  document.getElementById('calcBody').innerHTML=rows;
+}
+['pclk1','pclk2','pclkA','pclkS','freq','duty'].forEach(function(id){document.getElementById(id).addEventListener('input',calc);});
+calc();
+</script>
+</body>
+</html>

@@ -1,0 +1,26 @@
+# Renesas hardware manual: copyrighted and large, not distributed
+reference/manual/
+*.pdf
+
+# CS+ / CCRH850 build artifacts
+*.obj
+*.o
+*.d
+*.abs
+*.map
+*.hex
+*.mot
+*.srec
+*.lst
+*.pdb
+*.idf
+*.y
+*.wsp
+*.zip
+*.log
+
+# OS / editor
+Thumbs.db
+.DS_Store
+.vscode/
+.idea/
